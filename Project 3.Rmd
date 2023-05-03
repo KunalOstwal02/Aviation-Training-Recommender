@@ -1,0 +1,307 @@
+---
+title: "Recommendations for Flight Schools & Aviation Training Institutes"
+author: "500668171"
+subtitle: "Project 3"
+date: "University of Sydney | DATA1001 | May 2021.
+"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    self_contained: yes
+    theme: cerulean
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: hide
+---
+```{r, message = FALSE, warning=FALSE, results='hide'}
+library(ggplot2)
+library(tidyverse)
+library(plotly)
+library(gridExtra)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(scales)
+```
+
+<br>
+
+# Recommendaton
+
+The frequency of international flights in Australia has been enjoying an upward trend since 2003. Although with the COVID-19 pandemic, the flights have grounded across the world, but going by previous trend, the airline industry should bounce back to its upward gradient post-pandemic.
+
+Luxury airlines like Qantas have had a declining market share since 2008. This market has been captured by budget airlines such as Jetstar and Virgin.
+<br>
+
+![](midair.jpg){ width=75% }
+
+# Evidence
+
+## Initial Data Analysis
+
+```{r, message = FALSE, warning=FALSE, results='hide'}
+# Read in your data
+
+## International Airlines operating from Australia
+flights = read.csv("flights.csv")
+```
+
+```{r, message = FALSE, warning=FALSE, results='hide'}
+# IDA
+
+## Data Wrangling
+
+## Factoring each appropriate column
+for (x in colnames(flights)) {
+  if (class(flights[[x]]) == "character") {
+    flights[[x]] <- factor(flights[[x]])
+  }
+}
+
+## renaming In_Out for better comprehension
+levels(flights$In_Out) <- list(In = "I", Out = "O")
+
+## Storing date from Year and Month_num column
+flights$Date <-
+  as.Date(paste(flights$Year, sprintf("%02d", flights$Month_num), "01", sep = "-"))
+
+
+## Cleaning Month column as there is already a date column
+flights <- flights[-c(1)]
+
+## Removing duplicated flights to avoid double counting
+flights <- flights[flights$Stops == 0,]
+
+## Quick snapshot
+dim(flights)
+str(flights)
+```
+The data provided gives a broad summary of international flights from September 2003 to March 2018 in Australia.
+
+### Statistical Thinking
+
+ - The flight data is dated (latest data from March 2018). And given the unprecedented time we're in, it could be tricky to draw relevant conclusions for the current times.  
+
+ - Since airline industry is heavily dependent on global trends, it is possible that global changes could affect the dataset, the reason for which would be difficult to infer from the data.  
+
+### Limitations
+
+ - **No revenue data:**  
+ Having the economics of a flight/airline would go a long way in analyzing data. For example, even though Qantas has the highest frequency of flights, it is riddled with debt and even seeking a government bailout. QUBSF. (2021)
+
+ - **Inconsistent Stops**  
+ The inconsistent stops information can be misleading and is only vaguely clarified in the notes for the dataset which could be overlooked by many.
+
+> This file shows the airlines that operate on a given city pair and the different routes involved. Use the "Stops" category set to zero ("Over the coast") in order to get totals for an airline, route, inbound, outbound or total Australia. Any other aggregation could result in double counting.
+
+ Thus, not considering this could lead to double counting and biased conclusions.
+
+## What is the trend of the Flight Frequency from 2003 to 2018?
+
+Here we seek to understand the subsequent growth of the airline industry in Australia by the no. of flights hosted over the period of 2003 to 2018.  
+We shall find this using T-Test for Regression.
+
+```{r, message = FALSE, warning=FALSE}
+# Sums All_Flights with same date
+overall_growth <-
+  data.frame(aggregate(
+    flights$All_Flights,
+    by = list(Date = flights$Date),
+    FUN = sum
+  ))
+colnames(overall_growth)[2] <- "Flights"
+
+```
+
+### T-Test for Regression b/w Flight frequency and Dates
+
+#### Hypothesis:
+H~0~ : There is no linear trend between flight frequency and dates.
+H~1~ : There is a linear trend between flight frequency and dates.
+$\alpha = 0.05$
+
+#### Assumptions:
+  - Relation between flight frequency and dates is linear.
+```{r, message = FALSE, warning=FALSE, fig.cap = c("Fig. 1")}
+# Scatter plot plotting sum of all flights according to date
+ggplot(overall_growth, aes(x = Date, y = Flights)) + geom_point(color = "dodgerblue3") + stat_smooth(method = "lm") + labs(title = "Linear Graph b/w Flight frequency and Date", x = "Date", y = "Flight Frequency") + scale_x_date(breaks = "year", labels = date_format("%Y")) -> growth_graph
+ggplotly(growth_graph)
+```
+As seen from fig. 1, the scatter plot for flight frequency against date is linear.
+
+  - Residuals are independent, and normal with constant variance.
+```{r, message = FALSE, warning=FALSE}
+# Linear model for Flights vs Date
+lm(Flights ~ as.numeric(Date), data = overall_growth) -> growth_lm
+
+```
+```{r, message = FALSE, warning=FALSE, fig.cap = c("Fig. 2")}
+# Residual plot for growth_lm
+plot(
+  residuals(growth_lm),
+  main = "Residual Plot of Flight Frequency vs Date linear model",
+  ylab = "Residuals",
+  pch = 20,
+  col = "dodgerblue3"
+)
+
+```
+As we can see above, the residuals are quite random and homoscedasticity is established. Hence, residuals are independent, and normal with constant variance.
+
+#### Test Statistic
+
+Test Statistic for T-Testing regression: 
+$T = \frac{\hat{\beta} - 0}{SE_{\beta}} = \frac{b}{SE}$
+
+```{r}
+tab_model(
+  growth_lm,
+  p.style = "scientific",
+  string.p = "P-value",
+  string.est = "Coefficient",
+  show.ci = FALSE,
+  show.se = TRUE,
+  string.se = "Standard Error",
+  show.intercept = FALSE,
+  show.r2 = FALSE
+)
+```
+Hence,   
+
+  $T = \frac{1.61}{0.04} = 40.25$
+
+#### P-value  
+From the table above, we see that the $p-value = 2.362 * 10^{-87}$.
+
+#### Conclusion
+
+As the $p-value < \alpha$, we reject H~0~ as there is strong evidence against H~0~
+
+This means that there is a positive linear relation between flight frequency and that the no. of flights to and from Australia have been on the rise over the years.
+
+This is good news for flight schools and aviation training academies as this directly translates to increase in demand of skilled aviation workers to fill the higher workload.
+
+Although world-wide flights have been grounded due to the COVID-19 pandemic, inferring from historical evidence, the airline industry should bounce back post-pandemic.   
+Post-pandemic, the rise of freight carriers is also expected as throughout the pandemic, even though commercial flights were grounded, most essential supplies were airlifted. (Bouwer, Saxon and Wittkamp, 2021)  
+
+
+![](midair2.jpg){ width=75% }
+
+
+## What is the growth in top airlines from 2008 to 2017?
+
+Here we intend to find the overarching growth in market share of the top 15 airlines operating international flights to and from Australia. This question covers the timeline from the post-2008 economic depression to 2017 (as the data for 2018 is not complete).  
+
+We shall achieve this by comparing year-on-year flight frequency of each airline from 2008 to 2017.
+
+```{r, message = FALSE, warning=FALSE}
+#Filtering out flight data before 2010
+flights_10_17 = flights[!(flights$Year < 2008), ]
+
+#Initialize dataset
+Airline_growth = data.frame(
+  Airline = character(),
+  sum_2008 = numeric(),
+  sum_2009 = numeric(),
+  sum_2010 = numeric(),
+  sum_2011 = numeric(),
+  sum_2012 = numeric(),
+  sum_2013 = numeric(),
+  sum_2014 = numeric(),
+  sum_2015 = numeric(),
+  sum_2016 = numeric(),
+  sum_2017 = numeric()
+)
+
+# Adds data to Airline_growth
+## First row = Airline Name. Subsequent rows stores the no. of flights in a particular year by the respective airline
+for (i in unique(flights_10_17$Airline)) {
+  Airline_growth[nrow(Airline_growth) + 1,] = c(
+    i,
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2008"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2009"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2010"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2011"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2012"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2013"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2014"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2015"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2016"] == i)),
+    as.numeric(sum(flights_10_17$Airline[flights_10_17$Year == "2017"] == i))
+  )
+}
+
+#Filters out airlines with less than 280 flights in 10 years (<40 flights per year is a negligible amount that can have outliers)
+Airline_growth = Airline_growth[as.numeric(Airline_growth$sum_2008) + as.numeric(Airline_growth$sum_2009) +
+                                  as.numeric(Airline_growth$sum_2010) +
+                                  as.numeric(Airline_growth$sum_2011) +
+                                  as.numeric(Airline_growth$sum_2012) +
+                                  as.numeric(Airline_growth$sum_2013) +
+                                  as.numeric(Airline_growth$sum_2014) +
+                                  as.numeric(Airline_growth$sum_2015) +
+                                  as.numeric(Airline_growth$sum_2016) +
+                                  as.numeric(Airline_growth$sum_2017) > 280, ]
+
+# Filters out airlines without presence in Australian market from 2008-2017
+Airline_growth = Airline_growth[rowSums(Airline_growth == 0) < 1,]
+```
+
+```{r, message = FALSE, warning=FALSE, fig.cap="Fig. 3"}
+#Scatter plot for Airline year-over-year flights
+Airline_growth[1:15,] %>% gather(Key, Value, -Airline) -> long_Airline
+as.numeric(as.character(long_Airline$Value)) -> long_Airline$Value
+
+ggplot(long_Airline,
+       aes(
+         x = factor(Key),
+         y = Value,
+         group = Airline,
+         color = Airline
+       )) + geom_point(size = 2) + scale_y_continuous(breaks = seq(0, 1800, by = 100),
+                                                      labels = seq(0, 1800, by = 100)) + scale_x_discrete(
+                                                        labels = c(
+                                                          "sum_2008" = "2008",
+                                                          "sum_2009" =  "2009",
+                                                          "sum_2010" = "2010",
+                                                          "sum_2011" = "2011",
+                                                          "sum_2012" = "2012",
+                                                          "sum_2013" = "2013",
+                                                          "sum_2014" = "2014",
+                                                          "sum_2015" = "2015",
+                                                          "sum_2016" = "2016",
+                                                          "sum_2017" = "2017"
+                                                        )
+                                                      ) + geom_line(color = "grey") + labs(title = "Top 15 Airlines by market share (2008-2017)", x = "Year", y = "No. of flights") -> Airline_growth_graph
+ggplotly(Airline_growth_graph, tooltip = c("group", "y")) -> Airline_growth_plot
+Airline_growth_plot
+```
+
+### Observation
+
+We observe that Qantas' market share has been decreasing since a long time. In 2008, Qantas had more flights than the next 3 airlines combined, namely Jetstar, Air New Zealand and Emirates and captures more than 1/3^rd^ of the top 15 airlines' market share. Other airlines aren't even near; second-placed Jetstar only has a measly 44% capacity of the market leader Qantas.  
+
+This changes radically by 2017 where Qantas' flight frequency is reduced to 60% of the 2008 levels and Jetstar gives it a run for its money competing toe-to-toe over market share. Even previously fringe airlines like Virgin Australia almost double their capacity. 
+
+### Inference
+
+This showcases an important trend in the Airline market. Qantas has maintained itself as a luxury airline. Its decline in market share has directly been captured by budget-oriented airlines like Jetstar and Virgin Australia. This trend reflects on the people's spending habits over the years.
+
+### Conclusion
+
+This rise of budget airlines is an important phenomenon as it suggests a shift in the demand of flights. Earlier it would be considered as a luxury product but as air travel becomes more and more efficient and affordable, a rising majority of consumers will focus towards budget-focused airlines such as Jetstar and Virgin.  
+This is significant for flight schools and aviation institutes. Because, even if there is an overall rise in the demand of skilled workforce, this shift towards budget airlines could mean that expected salaries decrease as more and more workers are hired by budget airlines. This helps them set the correct expectations for students.
+
+<br>
+
+![](landing.jpg){ width=75% }
+
+# References
+
+Qantas Airways Debt to Equity Ratio | QUBSF . (2021). Retrieved 26 May 2021, from   <https://ycharts.com/companies/QUBSF/debt_equity_ratio>  
+
+Bouwer, J., Saxon, S. and Wittkamp, N., 2021. Five shifts in post-pandemic airline industry. [online] Available at:  
+<https://www.mckinsey.com/industries/travel-logistics-and-infrastructure/our-insights/back-to-the-future-airline-sector-poised-for-change-post-covid-19>   [Accessed 26 May 2021].
+
+Picture Credits: Respective photographers on <https://www.unsplash.com>
